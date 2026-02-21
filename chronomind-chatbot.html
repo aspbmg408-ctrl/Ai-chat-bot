@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChronoMind AI — Trợ lý thời gian thông minh</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #090e1a;
+      --surface: #0f1628;
+      --surface2: #162035;
+      --border: #1e2d4a;
+      --accent: #00d4ff;
+      --accent2: #7b5ea7;
+      --accent3: #00ffaa;
+      --text: #e8f0ff;
+      --text-dim: #7a8aaa;
+      --user-bubble: #162545;
+      --ai-bubble: #0f1e38;
+      --glow: 0 0 30px rgba(0,212,255,0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,212,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(123,94,167,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 60% 30%, rgba(0,255,170,0.04) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Grid lines */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* HEADER */
+    .header {
+      position: relative;
+      z-index: 10;
+      padding: 14px 24px;
+      background: rgba(9,14,26,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-ring {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(0,212,255,0.3);
+      flex-shrink: 0;
+      animation: pulse-logo 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-logo {
+      0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.3); }
+      50% { box-shadow: 0 0 35px rgba(0,212,255,0.55); }
+    }
+
+    .header-info { flex: 1; }
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 1px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent3);
+      box-shadow: 0 0 8px var(--accent3);
+      animation: blink 2s ease-in-out infinite;
+      margin-right: 4px;
+      display: inline-block;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* API KEY BAR */
+    .api-bar {
+      position: relative;
+      z-index: 10;
+      padding: 8px 16px;
+      background: rgba(15,22,40,0.9);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .api-bar label {
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    .api-key-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .api-key-input:focus { border-color: var(--accent); }
+    .api-key-input::placeholder { color: var(--text-dim); }
+
+    .demo-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0,255,170,0.12);
+      color: var(--accent3);
+      border: 1px solid rgba(0,255,170,0.25);
+      white-space: nowrap;
+      cursor: default;
+    }
+
+    /* CHAT AREA */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      position: relative;
+      z-index: 5;
+      scroll-behavior: smooth;
+    }
+
+    .chat-area::-webkit-scrollbar { width: 4px; }
+    .chat-area::-webkit-scrollbar-track { background: transparent; }
+    .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .message {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      animation: msg-in 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      opacity: 0;
+    }
+
+    @keyframes msg-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .message.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 32px; height: 32px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      align-self: flex-end;
+    }
+
+    .avatar.ai {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 12px rgba(0,212,255,0.25);
+    }
+
+    .avatar.user {
+      background: linear-gradient(135deg, #2a3a5c, #3a4d7a);
+    }
+
+    .bubble {
+      max-width: min(75%, 560px);
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.65;
+      position: relative;
+    }
+
+    .bubble.ai {
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble.user {
+      background: var(--user-bubble);
+      border: 1px solid rgba(0,212,255,0.15);
+      border-bottom-right-radius: 4px;
+      text-align: right;
+    }
+
+    .bubble strong { color: var(--accent); font-weight: 600; }
+    .bubble em { color: var(--accent3); font-style: normal; font-weight: 500; }
+
+    .bubble .schedule-block {
+      margin-top: 10px;
+      background: rgba(0,212,255,0.06);
+      border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .schedule-row {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(0,212,255,0.08);
+      font-size: 13px;
+      gap: 10px;
+      transition: background 0.15s;
+    }
+
+    .schedule-row:last-child { border-bottom: none; }
+    .schedule-row:hover { background: rgba(0,212,255,0.06); }
+
+    .schedule-time {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+      font-size: 12px;
+      min-width: 52px;
+      font-weight: 600;
+    }
+
+    .schedule-task { flex: 1; color: var(--text); }
+    .schedule-icon { font-size: 16px; }
+
+    /* Quick suggestions */
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .suggestion-btn {
+      padding: 7px 14px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 20px;
+      color: var(--accent);
+      font-size: 12px;
+      font-family: 'Sora', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .suggestion-btn:hover {
+      background: rgba(0,212,255,0.18);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 14px 16px;
+    }
+
+    .typing-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: typing 1.2s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* INPUT AREA */
+    .input-area {
+      position: relative;
+      z-index: 10;
+      padding: 12px 16px 16px;
+      background: rgba(9,14,26,0.9);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-row:focus-within {
+      border-color: rgba(0,212,255,0.4);
+      box-shadow: 0 0 20px rgba(0,212,255,0.08);
+    }
+
+    #user-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 14px;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.5;
+    }
+
+    #user-input::placeholder { color: var(--text-dim); }
+
+    .send-btn {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 0 15px rgba(0,212,255,0.25);
+    }
+
+    .send-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 25px rgba(0,212,255,0.45);
+    }
+
+    .send-btn:active { transform: scale(0.95); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .input-hint {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: center;
+      margin-top: 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Welcome screen */
+    .welcome {
+      text-align: center;
+      padding: 40px 20px;
+      animation: msg-in 0.5s ease forwards;
+    }
+
+    .welcome-icon {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 0 20px rgba(0,212,255,0.5));
+    }
+
+    .welcome h2 {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .welcome p {
+      color: var(--text-dim);
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 380px;
+      margin: 0 auto 24px;
+    }
+
+    .quick-starts {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .qs-btn {
+      padding: 12px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Sora', sans-serif;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .qs-btn:hover {
+      border-color: rgba(0,212,255,0.35);
+      background: rgba(0,212,255,0.06);
+      transform: translateX(4px);
+    }
+
+    .qs-icon { font-size: 18px; }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .header { padding: 12px 14px; }
+      .bubble { max-width: 88%; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-ring">⏱️</div>
+  <div class="header-info">
+    <div class="header-title">ChronoMind AI</div>
+    <div class="header-sub"><span class="status-dot"></span>Trợ lý thời gian cá nhân hóa · AI 9.0</div>
+  </div>
+  <div class="demo-badge">✦ DEMO</div>
+</div>
+
+<!-- API KEY BAR -->
+<div class="api-bar">
+  <label>🔑 OpenAI API Key:</label>
+  <input class="api-key-input" type="password" id="api-key" placeholder="sk-... (để trống dùng chế độ Demo thông minh)" />
+</div>
+
+<!-- CHAT AREA -->
+<div class="chat-area" id="chat-area">
+  <!-- Welcome screen -->
+  <div class="welcome" id="welcome-screen">
+    <span class="welcome-icon">🧠</span>
+    <h2>Chào mừng đến với ChronoMind AI</h2>
+    <p>Tôi sẽ giúp bạn xây dựng thời gian biểu cá nhân hóa, thông minh — để bạn không bao giờ đi trễ nữa.</p>
+    <div class="quick-starts">
+      <button class="qs-btn" onclick="quickStart(this)">
+        <span class="qs-icon">📅</span>
+        Tôi muốn tạo thời gian biểu cho ngày mai
+      </button>
+      <button class="qs-btn" onclick="quickStart(this)">
+        <span class="qs-icon">⏰</span>
+        Hôm nay tôi hay đi trễ, giúp tôi cải thiện
+      </button>
+      <button class="qs-btn" onclick="quickStart(this)">
+        <span class="qs-icon">🎓</span>
+        Sắp xếp lịch học và nghỉ ngơi hợp lý
+      </button>
+      <button class="qs-btn" onclick="quickStart(this)">
+        <span class="qs-icon">💼</span>
+        Cân bằng lịch làm việc và cuộc sống
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT AREA -->
+<div class="input-area">
+  <div class="input-row">
+    <textarea id="user-input" rows="1" placeholder="Nhập hoạt động của bạn... (VD: Học lúc 7h, học thêm 3h chiều, ôn thi tối 2 tiếng)" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+  </div>
+  <div class="input-hint">Enter để gửi · Shift+Enter xuống dòng · Nhập API key để dùng AI thật</div>
+</div>
+
+<script>
+  const chatArea = document.getElementById('chat-area');
+  const userInput = document.getElementById('user-input');
+  const sendBtn = document.getElementById('send-btn');
+  const welcomeScreen = document.getElementById('welcome-screen');
+
+  let conversationHistory = [];
+  let isProcessing = false;
+
+  const SYSTEM_PROMPT = `Bạn là ChronoMind AI — một trợ lý thông minh chuyên tạo thời gian biểu cá nhân hóa giúp người dùng quản lý thời gian hiệu quả và không đi trễ.
+
+Nhiệm vụ của bạn:
+1. Thu thập thông tin về các hoạt động trong ngày của người dùng (giờ học, giờ làm, di chuyển, ăn uống, nghỉ ngơi...)
+2. Phân tích và tạo ra thời gian biểu hợp lý, có tính đến thời gian đệm, di chuyển, và nhịp sinh học
+3. Đưa ra gợi ý cải thiện thói quen cụ thể
+4. Trả lời bằng tiếng Việt, thân thiện, ngắn gọn nhưng có chiều sâu
+
+Khi tạo thời gian biểu, hãy format như sau (bắt buộc):
+[SCHEDULE]
+HH:MM | icon | Tên hoạt động
+HH:MM | icon | Tên hoạt động
+[/SCHEDULE]
+
+Các icon gợi ý: 🌅 thức dậy, 🍳 ăn sáng, 🚌 di chuyển, 📚 học, ☕ nghỉ giải lao, 🍱 ăn trưa, 💪 thể dục, 📖 tự học, 🌙 ngủ, 💼 làm việc
+
+Luôn hỏi thêm thông tin nếu cần để tạo lịch cá nhân hóa hơn. Sau lịch trình, đưa ra 2-3 lời khuyên ngắn gọn.`;
+
+  // DEMO responses khi không có API key
+  const demoResponses = {
+    keywords: {
+      'đi trễ|muộn|trễ': demoLate,
+      'ngày mai|hôm nay|lịch': demoSchedule,
+      'học|sinh viên|bài tập': demoStudy,
+      'làm|công việc|văn phòng': demoWork,
+      'ngủ|nghỉ|mệt': demoRest,
+      'default': demoDefault
+    }
+  };
+
+  function demoLate() {
+    return `Tôi hiểu rồi! Đi trễ thường do **thiếu thời gian đệm** và **không có kế hoạch cụ thể**. 🎯
+
+Hãy cho tôi biết:
+- Bạn cần có mặt ở đâu và lúc mấy giờ?
+- Nhà bạn cách đó bao lâu (xe máy/xe buýt)?
+- Buổi sáng bạn thường làm gì trước khi đi?
+
+Tôi sẽ tạo lịch sáng **chống-đi-trễ** cho bạn ngay! ⏰`;
+  }
+
+  function demoSchedule() {
+    return `Tuyệt! Hãy để tôi giúp bạn xây dựng thời gian biểu. Để cá nhân hóa tốt nhất, bạn cho tôi biết:
+
+**1.** Bạn cần đến trường/cơ quan lúc mấy giờ?
+**2.** Thời gian di chuyển bao lâu?
+**3.** Buổi tối bạn có hoạt động gì không (học thêm, thể dục, v.v.)?
+
+Hoặc nếu muốn thử ngay, hãy nhấn **"Tôi học lúc 7h, học thêm 3h chiều"** để xem mẫu lịch! 📋`;
+  }
+
+  function demoStudy() {
+    const msg = userInput._lastValue || '';
+    return `Tôi sẽ tạo thời gian biểu học tập phù hợp cho bạn! 📚
+
+[SCHEDULE]
+06:00 | 🌅 | Thức dậy — uống nước, vươn vai
+06:15 | 🍳 | Ăn sáng nhẹ (đừng bỏ bữa!)
+06:40 | 🚌 | Chuẩn bị & khởi hành
+07:00 | 📚 | Học chính khóa
+11:30 | 🍱 | Ăn trưa + nghỉ ngơi 20 phút
+13:00 | ☕ | Ôn bài nhẹ / đọc sách
+15:00 | 📖 | Học thêm / ngoại khóa
+17:30 | 💪 | Thể dục 30 phút (tăng tập trung!)
+19:00 | 🍽️ | Ăn tối cùng gia đình
+19:45 | 📚 | Ôn thi / làm bài tập
+21:30 | ☕ | Nghỉ giải lao 15 phút
+21:45 | 📖 | Đọc sách / chuẩn bị cho ngày mai
+22:30 | 🌙 | Đi ngủ đúng giờ
+[/SCHEDULE]
+
+💡 **Lời khuyên:**
+- Ngủ đủ **7-8 tiếng** giúp ghi nhớ tốt hơn 40%
+- Đặt báo thức sớm hơn **30 phút** so với giờ thật
+- Chuẩn bị đồ dùng từ tối hôm trước`;
+  }
+
+  function demoWork() {
+    return `Đây là thời gian biểu tối ưu cho người đi làm! 💼
+
+[SCHEDULE]
+06:00 | 🌅 | Thức dậy — không snooze!
+06:20 | 🍳 | Ăn sáng (quan trọng cho não bộ)
+06:50 | 🚌 | Di chuyển đến cơ quan
+08:00 | 💼 | Bắt đầu làm việc — deep work
+10:00 | ☕ | Nghỉ giải lao 10 phút
+10:10 | 💼 | Tiếp tục công việc
+12:00 | 🍱 | Ăn trưa + đi bộ nhẹ
+13:30 | 💼 | Làm việc buổi chiều
+15:30 | ☕ | Break ngắn, review to-do list
+17:30 | 🏠 | Kết thúc & về nhà
+18:30 | 💪 | Thể dục / thư giãn
+20:00 | 🍽️ | Ăn tối
+21:00 | 📱 | Thời gian cá nhân
+22:30 | 🌙 | Chuẩn bị ngủ
+23:00 | 😴 | Ngủ
+[/SCHEDULE]
+
+💡 **Tips năng suất:**
+- **"Eat the frog"**: làm việc khó nhất vào đầu buổi sáng
+- Tắt thông báo điện thoại trong deep work
+- Review ngày hôm sau **trước khi ngủ**`;
+  }
+
+  function demoRest() {
+    return `Nghỉ ngơi đúng cách cũng là một kỹ năng quan trọng! 😴
+
+Một số gợi ý từ ChronoMind AI:
+
+**🧠 Quy tắc 90 phút:** Làm việc tập trung 90 phút, nghỉ 15-20 phút. Não bộ hoạt động theo chu kỳ này.
+
+**📱 Digital detox:** Tắt màn hình ít nhất **1 tiếng trước khi ngủ** — ánh sáng xanh làm khó ngủ.
+
+**⏰ Ngủ đúng giờ:** Cố gắng ngủ và thức dậy cùng một giờ mỗi ngày, kể cả cuối tuần.
+
+Bạn có muốn tôi tạo một lịch nghỉ ngơi cân bằng với công việc/học tập không? 🌙`;
+  }
+
+  function demoDefault() {
+    return `Xin chào! Tôi là **ChronoMind AI** — trợ lý thời gian thông minh của bạn. ⏱️
+
+Tôi có thể giúp bạn:
+- ✅ Tạo thời gian biểu cá nhân hóa
+- ✅ Phân tích thói quen và đề xuất cải thiện
+- ✅ Tính toán thời gian đệm để không đi trễ
+- ✅ Cân bằng học tập, làm việc và nghỉ ngơi
+
+Hãy cho tôi biết lịch trình của bạn ngày hôm nay/ngày mai để bắt đầu nhé! 📅`;
+  }
+
+  function getDemoResponse(text) {
+    const lower = text.toLowerCase();
+    for (const [pattern, fn] of Object.entries(demoResponses.keywords)) {
+      if (pattern === 'default') continue;
+      if (new RegExp(pattern).test(lower)) return fn();
+    }
+    // Check for schedule data
+    if (/\d+h|\d+:\d+|giờ|sáng|chiều|tối/.test(lower)) return demoStudy();
+    return demoDefault();
+  }
+
+  function parseSchedule(text) {
+    const match = text.match(/\[SCHEDULE\]([\s\S]*?)\[\/SCHEDULE\]/);
+    if (!match) return null;
+    const lines = match[1].trim().split('\n').filter(l => l.trim());
+    return lines.map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      return { time: parts[0], icon: parts[1], task: parts[2] };
+    });
+  }
+
+  function renderMessage(content, role) {
+    const schedule = parseSchedule(content);
+    let cleanContent = content.replace(/\[SCHEDULE\][\s\S]*?\[\/SCHEDULE\]/g, '');
+
+    // Format markdown-like
+    cleanContent = cleanContent
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role}`;
+    avatar.textContent = role === 'ai' ? '🧠' : '👤';
+
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role}`;
+    bubble.innerHTML = cleanContent;
+
+    if (schedule && schedule.length > 0) {
+      const block = document.createElement('div');
+      block.className = 'schedule-block';
+      schedule.forEach(row => {
+        const r = document.createElement('div');
+        r.className = 'schedule-row';
+        r.innerHTML = `
+          <span class="schedule-time">${row.time}</span>
+          <span class="schedule-icon">${row.icon}</span>
+          <span class="schedule-task">${row.task}</span>
+        `;
+        block.appendChild(r);
+      });
+      bubble.appendChild(block);
+    }
+
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+    return div;
+  }
+
+  function addMessage(content, role) {
+    if (welcomeScreen && welcomeScreen.parentNode) {
+      welcomeScreen.remove();
+    }
+    const el = renderMessage(content, role);
+    chatArea.appendChild(el);
+    setTimeout(() => chatArea.scrollTop = chatArea.scrollHeight, 50);
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'message ai';
+    div.id = 'typing-msg';
+    div.innerHTML = `
+      <div class="avatar ai">🧠</div>
+      <div class="bubble ai">
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>`;
+    if (welcomeScreen && welcomeScreen.parentNode) welcomeScreen.remove();
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing-msg');
+    if (t) t.remove();
+  }
+
+  async function callOpenAI(apiKey, messages) {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+        max_tokens: 800,
+        temperature: 0.7
+      })
+    });
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.choices[0].message.content;
+  }
+
+  async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text || isProcessing) return;
+
+    isProcessing = true;
+    sendBtn.disabled = true;
+    userInput.value = '';
+    userInput.style.height = 'auto';
+
+    addMessage(text, 'user');
+    conversationHistory.push({ role: 'user', content: text });
+
+    showTyping();
+
+    const apiKey = document.getElementById('api-key').value.trim();
+
+    try {
+      let response;
+      if (apiKey && apiKey.startsWith('sk-')) {
+        // Dùng OpenAI thật
+        response = await callOpenAI(apiKey, conversationHistory);
+      } else {
+        // Demo mode với delay giả lập
+        await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+        response = getDemoResponse(text);
+      }
+      removeTyping();
+      conversationHistory.push({ role: 'assistant', content: response });
+      addMessage(response, 'ai');
+    } catch (err) {
+      removeTyping();
+      addMessage(`⚠️ **Lỗi kết nối:** ${err.message}\n\nVui lòng kiểm tra API key hoặc kết nối mạng. Bạn có thể dùng **chế độ Demo** bằng cách xóa API key.`, 'ai');
+    }
+
+    isProcessing = false;
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
+
+  function quickStart(btn) {
+    userInput.value = btn.querySelector('.qs-btn') ? '' : btn.textContent.trim().replace(/^[\p{Emoji}\s]+/u, '').trim();
+    userInput.value = btn.textContent.trim().replace(/^\S+\s/, '').trim();
+    sendMessage();
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+</script>
+</body>
+</html>
